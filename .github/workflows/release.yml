@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+  queue: max
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish-core:
+    if: startsWith(github.event.release.tag_name, 'v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check tagged commit is on main
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "Tag $TAG points to a commit that is not on main"
+            exit 1
+          fi
+
+      - name: Set up Rust
+        run: rustup update stable && rustup default stable
+
+      - name: Check tag matches Cargo version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "promin").version')
+          if [ "${TAG#v}" != "$version" ]; then
+            echo "Tag $TAG does not match Cargo version $version"
+            exit 1
+          fi
+
+      - name: Cargo test
+        run: cargo test --workspace --locked
+
+      - name: Get crates.io token
+        id: auth
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+
+      - name: Publish promin-core
+        run: cargo publish -p promin-core --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+  publish-cli:
+    needs: publish-core
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Rust
+        run: rustup update stable && rustup default stable
+
+      - name: Get crates.io token
+        id: auth
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+
+      - name: Publish promin
+        run: cargo publish -p promin --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+  upload-binaries:
+    needs: publish-cli
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04-arm
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Build and upload promin
+        uses: taiki-e/upload-rust-binary-action@f0d45ae91ee7b8ee928de7a9d04d893a08bcbec6 # v1.30.2
+        with:
+          bin: promin
+          target: ${{ matrix.target }}
+          archive: $bin-$target-$tag
+          include: README.MD,LICENSE-MIT.MD,LICENSE-APACHE.MD
+          checksum: sha256
+          build-tool: cargo
+          locked: true
