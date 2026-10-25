@@ -20,7 +20,7 @@ jobs:
     if: startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: release
+    environment: crates-io
     permissions:
       contents: read
       id-token: write
@@ -68,7 +68,7 @@ jobs:
     needs: publish-core
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: release
+    environment: crates-io
     permissions:
       contents: read
       id-token: write
