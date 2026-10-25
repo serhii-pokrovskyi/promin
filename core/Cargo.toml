@@ -1,10 +1,16 @@
 [package]
 name = "promin-core"
+description = "Library behind promin, a read-only local monitor for Deye solar inverters"
+keywords = ["deye", "solarman", "inverter", "solar", "modbus"]
+categories = ["hardware-support", "network-programming"]
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 repository.workspace = true
 license.workspace = true
 readme.workspace = true
+
+[lints.rust]
+missing_docs = "warn"
 
 [dependencies]

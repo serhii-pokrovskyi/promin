@@ -1,3 +1,7 @@
+mod args;
+
+use args::CliArgs;
+
 fn main() {
-    println!("Hello, world!");
+    CliArgs::parse_args();
 }
