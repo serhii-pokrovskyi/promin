@@ -26,7 +26,10 @@ impl fmt::Display for Error {
                 write!(f, "invalid read request: {reason}")
             }
             Self::InvalidDeviceId(id) => {
-                write!(f, "invalid device id {id:?}: use 1 to 32 ASCII letters, digits, '-' or '_'")
+                write!(
+                    f,
+                    "invalid device id {id:?}: use 1 to 32 ASCII letters, digits, '-' or '_'"
+                )
             }
             Self::Exception(code) => {
                 write!(f, "modbus exception: {code}")
@@ -46,7 +49,7 @@ impl ExceptionCode {
     /// raw code
     pub fn code(self) -> u8 {
         self.0
-    } 
+    }
 }
 
 impl fmt::Display for ExceptionCode {
@@ -61,7 +64,7 @@ impl fmt::Display for ExceptionCode {
             0x08 => "memory parity error",
             0x0A => "gateway path unavailable",
             0x0B => "gateway target device failed to respond",
-            _ => "unknown"
+            _ => "unknown",
         };
         write!(f, "{name} ({:#04x})", self.0)
     }
@@ -97,10 +100,14 @@ impl fmt::Display for RtuError {
                 write!(f, "{got} data bytes, expected {expected}")
             }
             RtuFault::Length { expected, got } => {
-                write!(f, "{got} bytes, expected {expected} (or {} ending in 00 00)", expected + 2)
+                write!(
+                    f,
+                    "{got} bytes, expected {expected} (or {} ending in 00 00)",
+                    expected + 2
+                )
             }
             RtuFault::Crc { expected, got } => {
-                write!(f,  "crc {got:#06x}, expected {expected:#06x}")
+                write!(f, "crc {got:#06x}, expected {expected:#06x}")
             }
         }
     }

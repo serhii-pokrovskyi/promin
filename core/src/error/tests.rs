@@ -17,9 +17,9 @@ fn exception_code_names() {
 
 #[test]
 fn messages_nest() {
-    let fault = RtuFault::Crc { 
-        expected: 0x6e30, 
-        got: 0x6e31, 
+    let fault = RtuFault::Crc {
+        expected: 0x6e30,
+        got: 0x6e31,
     };
     let err = Error::Rtu(RtuError(fault));
     assert_eq!(
