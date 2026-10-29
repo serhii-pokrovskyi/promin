@@ -1,7 +1,4 @@
-#[cfg(test)]
-mod tests;
-
-use std::fmt::{self};
+use std::fmt;
 
 /// Represents lib error
 #[derive(Debug)]
@@ -9,7 +6,7 @@ use std::fmt::{self};
 pub enum Error {
     /// Cant carry read request
     InvalidRequest(&'static str),
-    /// text cant be a  ['DeviceId']
+    /// text cant be a  DeviceId
     InvalidDeviceId(String),
     /// inverter refuesed to read
     Exception(ExceptionCode),
@@ -94,7 +91,7 @@ impl fmt::Display for RtuError {
                 write!(f, "from slave {got}, expected {expected}")
             }
             RtuFault::Function { expected, got } => {
-                write!(f, "function  {got:#04x}, expected {expected:#04x}")
+                write!(f, "function {got:#04x}, expected {expected:#04x}")
             }
             RtuFault::ByteCount { expected, got } => {
                 write!(f, "{got} data bytes, expected {expected}")
@@ -112,3 +109,6 @@ impl fmt::Display for RtuError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
