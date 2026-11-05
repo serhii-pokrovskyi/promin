@@ -106,6 +106,7 @@ pub struct Sample {
 }
 
 impl Sample {
+    /// smaple with blank data
     pub fn new(device: DeviceId, at: UnixMillis) -> Self {
         Self {
             device,
