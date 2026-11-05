@@ -37,3 +37,16 @@ fn snapshot_first_block_wins_on_overlap() {
     assert_eq!(snapshot.get(11), Some(2));
     assert_eq!(snapshot.get(12), Some(3));
 }
+
+#[test]
+fn sample_starts_empty() {
+    let device = DeviceId::new("2106234258").unwrap();
+    let sample = Sample::new(device.clone(), UnixMillis(1_761_660_000_000));
+    assert_eq!(sample.device, device);
+    assert_eq!(sample.at, UnixMillis(1_761_660_000_000));
+    assert!(sample.pv.is_empty());
+    assert_eq!(sample.battery.soc_pct, None);
+    assert_eq!(sample.grid.power_w, None);
+    assert_eq!(sample.inverter.state, None);
+    assert_eq!(sample.energy.pv_total_kwh, None);
+}

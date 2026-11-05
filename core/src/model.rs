@@ -85,6 +85,16 @@ impl RegisterBlock {
 pub struct UnixMillis(pub i64);
 
 /// redings model
+///
+/// ```
+/// use promin_core::model::{DeviceId, Sample, UnixMillis};
+///
+/// let device = DeviceId::new("2106234258")?;
+/// let mut sample = Sample::new(device, UnixMillis(1_761_660_000_000));
+/// sample.battery.soc_pct = Some(87.0);
+/// sample.grid.power_w = Some(-1200.0); // negative: selling to the grid
+/// # Ok::<(), promin_core::Error>(())
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub struct Sample {
     /// device
