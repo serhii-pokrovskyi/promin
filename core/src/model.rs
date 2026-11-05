@@ -37,14 +37,17 @@ pub struct RegisterSnapshot {
 }
 
 impl RegisterSnapshot {
+    /// empty snapshot
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// adds words read from consecutive registers, first one at `start`
     pub fn push_block(&mut self, start: u16, words: Vec<u16>) {
         self.blocks.push(RegisterBlock { start, words });
     }
 
+    /// value of one register, None if no block has it; first block wins on overlap
     pub fn get(&self, addr: u16) -> Option<u16> {
         self.blocks.iter().find_map(|block| {
             let offset = addr.checked_sub(block.start)?;
@@ -52,11 +55,13 @@ impl RegisterSnapshot {
         })
     }
 
+    /// blocks in the order they were added
     pub fn blocks(&self) -> &[RegisterBlock] {
         &self.blocks
     }
 }
 
+/// words from one read, starting at `start`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RegisterBlock {
     start: u16,
@@ -64,10 +69,12 @@ pub struct RegisterBlock {
 }
 
 impl RegisterBlock {
+    /// address of the first register
     pub fn start(&self) -> u16 {
         self.start
     }
 
+    /// register values, one per address
     pub fn words(&self) -> &[u16] {
         &self.words
     }
