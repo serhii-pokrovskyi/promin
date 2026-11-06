@@ -3,6 +3,7 @@
 //! Still in early development, nothing to use here yet.
 
 mod error;
+pub mod modbus;
 pub mod model;
 
 pub use error::{Error, ExceptionCode, RtuError};
