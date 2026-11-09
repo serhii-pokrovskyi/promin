@@ -27,3 +27,9 @@ fn messages_nest() {
         "malformed modbus reply: crc 0x6e31, expected 0x6e30"
     )
 }
+
+#[test]
+fn logger_error_message() {
+    let err = Error::Logger { code: 0x05 };
+    assert_eq!(err.to_string(), "logger error code 0x05");
+}

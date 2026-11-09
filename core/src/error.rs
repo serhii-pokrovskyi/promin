@@ -12,6 +12,11 @@ pub enum Error {
     Exception(ExceptionCode),
     /// something wrong with reply
     Rtu(RtuError),
+    /// logger answer with it's own undocumented error
+    Logger {
+        /// first byte of logger reply
+        code: u8,
+    },
 }
 
 impl std::error::Error for Error {}
@@ -33,6 +38,9 @@ impl fmt::Display for Error {
             }
             Self::Rtu(err) => {
                 write!(f, "malformed modbus reply: {err}")
+            }
+            Self::Logger { code } => {
+                write!(f, "logger error code {code:#04x}")
             }
         }
     }
