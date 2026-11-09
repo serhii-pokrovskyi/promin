@@ -5,5 +5,6 @@
 mod error;
 pub mod modbus;
 pub mod model;
+mod v5;
 
 pub use error::{Error, ExceptionCode, RtuError};
