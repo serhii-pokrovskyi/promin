@@ -65,3 +65,146 @@ fn request_frames_only_read() {
         assert!(matches!(frame[27], 0x03 | 0x04), "{kind:?}");
     }
 }
+
+fn frame_of(found: Split) -> (Frame, usize) {
+    match found {
+        Split::Frame { frame, used } => (frame, used),
+        other => panic!("expected a frame, got {other:?}"),
+    }
+}
+
+/// splits the whole buffer the way the connection will: drop `used` bytes
+/// after each answer, stop at `NeedMore`
+fn split_all(mut buf: &[u8]) -> Vec<Split> {
+    let mut found = Vec::new();
+    loop {
+        let next = split(buf);
+        let used = match &next {
+            Split::NeedMore => return found,
+            Split::Frame { used, .. } | Split::Junk { used, .. } => *used,
+        };
+        // every answer but NeedMore drops at least one byte, so this loop ends
+        assert!((1..=buf.len()).contains(&used), "{next:?}");
+        buf = &buf[used..];
+        found.push(next);
+    }
+}
+
+#[test]
+fn splits_heartbeat() {
+    let (frame, used) = frame_of(split(&hex(HEARTBEAT)));
+    assert_eq!(used, 14);
+    assert_eq!(frame.control, 0x4710);
+    assert_eq!(frame.seq, 0x02);
+    assert_eq!(frame.logger, 0xE691_EACB);
+    assert_eq!(frame.payload, [0x00]);
+}
+
+#[test]
+fn splits_logger_reply() {
+    let (frame, used) = frame_of(split(&hex(ISSUE_48_REPLY)));
+    assert_eq!(used, 29);
+    assert_eq!(frame.control, 0x1510);
+    assert_eq!(frame.seq, 0x0B);
+    assert_eq!(frame.logger, 0xA1C3_7CE4);
+    assert_eq!(frame.payload.len(), 16);
+    assert_eq!(frame.payload[14..], [0x05, 0x00]);
+}
+
+#[test]
+fn splits_frames_read_together() {
+    let mut buf = hex(ISSUE_48_REPLY);
+    buf.extend(hex(HEARTBEAT));
+    let found = split_all(&buf);
+    assert_eq!(found.len(), 2);
+    assert_eq!(frame_of(found[0].clone()).0.control, 0x1510);
+    assert_eq!(frame_of(found[1].clone()).0.control, 0x4710);
+}
+
+#[test]
+fn drops_bytes_before_start() {
+    let junk = Split::Junk {
+        used: 3,
+        why: Skip::NoStart,
+    };
+    assert_eq!(split(&hex("00 15 ff")), junk);
+
+    let mut buf = hex("00 15 ff");
+    buf.extend(hex(HEARTBEAT));
+    let found = split_all(&buf);
+    assert_eq!(found[0], junk);
+    assert_eq!(frame_of(found[1].clone()).0.control, 0x4710);
+}
+
+#[test]
+fn waits_for_whole_frame() {
+    let full = hex(ISSUE_48_REPLY);
+    for len in 0..full.len() {
+        assert_eq!(split(&full[..len]), Split::NeedMore, "first {len} bytes");
+    }
+}
+
+#[test]
+fn drops_start_byte_of_broken_frame() {
+    let junk = |why| Split::Junk { used: 1, why };
+
+    let mut bad_end = hex(HEARTBEAT);
+    bad_end[13] = 0x00;
+    assert_eq!(split(&bad_end), junk(Skip::BadEnd));
+
+    let mut bad_checksum = hex(HEARTBEAT);
+    bad_checksum[12] ^= 0xFF;
+    assert_eq!(split(&bad_checksum), junk(Skip::BadChecksum));
+
+    assert_eq!(split(&hex("a5 ff ff")), junk(Skip::TooLong));
+}
+
+#[test]
+fn finds_frame_after_false_start() {
+    // A stray a5 whose length (0) puts the end byte where there is none.
+    let mut buf = hex("a5 00 00");
+    buf.extend(hex(HEARTBEAT));
+    let found = split_all(&buf);
+    assert_eq!(
+        found[..2],
+        [
+            Split::Junk {
+                used: 1,
+                why: Skip::BadEnd
+            },
+            Split::Junk {
+                used: 2,
+                why: Skip::NoStart
+            },
+        ]
+    );
+    assert_eq!(frame_of(found[2].clone()).0.control, 0x4710);
+}
+
+#[test]
+fn garbage_never_panics() {
+    // every byte of two real frames swapped for a few telling values.
+    let mut real = hex(ISSUE_48_REPLY);
+    real.extend(hex(HEARTBEAT));
+    for i in 0..real.len() {
+        for value in [0x00, 0x15, 0xA5, 0xFF] {
+            let mut buf = real.clone();
+            buf[i] = value;
+            split_all(&buf);
+        }
+    }
+    // made-up bytes, every fourth one a start byte. No rand crate: a simple
+    // linear congruential generator is enough here.
+    let mut state: u32 = 1;
+    let mut next = || {
+        state = state.wrapping_mul(1_103_515_245).wrapping_add(12_345);
+        state.to_be_bytes()[1]
+    };
+    for _ in 0..500 {
+        let len = usize::from(next() % 64);
+        let buf: Vec<u8> = (0..len)
+            .map(|i| if i % 4 == 0 { START } else { next() })
+            .collect();
+        split_all(&buf);
+    }
+}
